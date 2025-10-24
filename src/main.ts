@@ -27,44 +27,70 @@ ctx.lineWidth = 2;
 ctx.lineCap = "round";
 ctx.strokeStyle = "black";
 
-// --- State variables ---
-let isDrawing = false;
-let lastX = 0;
-let lastY = 0;
+// --- Data model ---
+type Point = { x: number; y: number };
+let drawing: Point[][] = []; // array of strokes, each stroke = array of points
+let currentStroke: Point[] | null = null;
 
-// --- Event listeners ---
+// --- Helper: get mouse position ---
+function getMousePos(event: MouseEvent): Point {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+}
+
+// --- Redraw function ---
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.beginPath();
+
+  for (const stroke of drawing) {
+    if (stroke.length === 0) continue;
+    ctx.moveTo(stroke[0].x, stroke[0].y);
+    for (let i = 1; i < stroke.length; i++) {
+      const p = stroke[i];
+      ctx.lineTo(p.x, p.y);
+    }
+  }
+
+  ctx.stroke();
+}
+
+// --- Event observer for "drawing-changed" ---
+canvas.addEventListener("drawing-changed", redraw);
+
+// --- Dispatch helper ---
+function notifyDrawingChanged() {
+  const event = new Event("drawing-changed");
+  canvas.dispatchEvent(event);
+}
+
+// --- Mouse event handlers ---
 canvas.addEventListener("mousedown", (e) => {
-  isDrawing = true;
-  [lastX, lastY] = getMousePos(e);
+  currentStroke = [];
+  drawing.push(currentStroke);
+  currentStroke.push(getMousePos(e));
+  notifyDrawingChanged();
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (!isDrawing) return;
-  const [x, y] = getMousePos(e);
-  ctx.beginPath();
-  ctx.moveTo(lastX, lastY);
-  ctx.lineTo(x, y);
-  ctx.stroke();
-  [lastX, lastY] = [x, y];
+  if (!currentStroke) return;
+  currentStroke.push(getMousePos(e));
+  notifyDrawingChanged();
 });
 
 canvas.addEventListener("mouseup", () => {
-  isDrawing = false;
+  currentStroke = null;
 });
 
 canvas.addEventListener("mouseleave", () => {
-  isDrawing = false;
+  currentStroke = null;
 });
 
 // --- Clear button logic ---
 clearButton.addEventListener("click", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawing = [];
+  notifyDrawingChanged();
 });
-
-// --- Helper: get mouse position relative to canvas ---
-function getMousePos(event: MouseEvent): [number, number] {
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  return [x, y];
-}
