@@ -1,27 +1,56 @@
-.icon {
-  width: 64px;
-  vertical-align: top;
-  border: 1px solid salmon;
-}
 body {
-  font-family: sans-serif;
+  font-family: system-ui, sans-serif;
   background: #fafafa;
   text-align: center;
-  padding-top: 2rem;
+  margin: 0;
+  padding: 2rem;
 }
 
-#sketchCanvas {
-  border: 1px solid black;
-  border-radius: 8px; /* rounded corners */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25); /* subtle drop shadow */
+/* Workspace centers everything */
+#workspace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
-button {
+
+.icon {
+  width: 48px; /* smaller */
+  height: auto;
+  display: inline-block;
+  vertical-align: middle;
+  border: 1px solid salmon;
+  margin-left: 6px;
+}
+
+/* Framed canvas box */
+#sketchCanvas {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
   margin-top: 1rem;
-  padding: 6px 12px;
+  cursor: crosshair;
+}
+
+/* Button bar aligned neatly under the canvas */
+#buttonBar {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  width: 256px; /* same width as canvas */
+  margin-top: 0.5rem;
+}
+
+/* Buttons */
+button {
+  padding: 5px 10px;
   font-size: 14px;
   border-radius: 6px;
-  border: 1px solid #999;
+  border: 1px solid #aaa;
+  background: #f9f9f9;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
 button:hover {

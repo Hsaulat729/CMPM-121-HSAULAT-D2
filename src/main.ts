@@ -21,76 +21,107 @@ const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
 document.body.appendChild(clearButton);
 
+// ✅ --- Undo/Redo buttons ---
+const undoButton = document.createElement("button");
+undoButton.textContent = "Undo";
+document.body.appendChild(undoButton);
+
+const redoButton = document.createElement("button");
+redoButton.textContent = "Redo";
+document.body.appendChild(redoButton);
+
 // --- Drawing context ---
 const ctx = canvas.getContext("2d")!;
 ctx.lineWidth = 2;
 ctx.lineCap = "round";
 ctx.strokeStyle = "black";
 
-// --- Data model ---
-type Point = { x: number; y: number };
-let drawing: Point[][] = []; // array of strokes, each stroke = array of points
-let currentStroke: Point[] | null = null;
+// --- State variables ---
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
 
-// --- Helper: get mouse position ---
-function getMousePos(event: MouseEvent): Point {
+// ✅ --- Data structures for undo/redo ---
+type Point = [number, number];
+let drawing: Point[][] = [];
+let currentStroke: Point[] | null = null;
+let redoStack: Point[][] = [];
+
+// --- Event listeners ---
+canvas.addEventListener("mousedown", (e) => {
+  isDrawing = true;
+  [lastX, lastY] = getMousePos(e);
+
+  // ✅ start new stroke
+  currentStroke = [];
+  drawing.push(currentStroke);
+  redoStack = [];
+  currentStroke.push([lastX, lastY]);
+  redraw();
+});
+
+canvas.addEventListener("mousemove", (e) => {
+  if (!isDrawing || !currentStroke) return;
+  const [x, y] = getMousePos(e);
+  currentStroke.push([x, y]);
+  redraw();
+});
+
+canvas.addEventListener("mouseup", () => {
+  isDrawing = false;
+  currentStroke = null;
+});
+
+canvas.addEventListener("mouseleave", () => {
+  isDrawing = false;
+  currentStroke = null;
+});
+
+// --- Clear button logic ---
+clearButton.addEventListener("click", () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawing = [];
+  redoStack = [];
+});
+
+// ✅ --- Undo button logic ---
+undoButton.addEventListener("click", () => {
+  if (drawing.length === 0) return;
+  const last = drawing.pop()!;
+  redoStack.push(last);
+  redraw();
+});
+
+// ✅ --- Redo button logic ---
+redoButton.addEventListener("click", () => {
+  if (redoStack.length === 0) return;
+  const restored = redoStack.pop()!;
+  drawing.push(restored);
+  redraw();
+});
+
+// --- Helper: get mouse position relative to canvas ---
+function getMousePos(event: MouseEvent): [number, number] {
   const rect = canvas.getBoundingClientRect();
-  return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
-  };
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  return [x, y];
 }
 
-// --- Redraw function ---
+// ✅ --- Redraw function ---
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.beginPath();
 
   for (const stroke of drawing) {
     if (stroke.length === 0) continue;
-    ctx.moveTo(stroke[0].x, stroke[0].y);
+    const [startX, startY] = stroke[0];
+    ctx.moveTo(startX, startY);
     for (let i = 1; i < stroke.length; i++) {
-      const p = stroke[i];
-      ctx.lineTo(p.x, p.y);
+      const [x, y] = stroke[i];
+      ctx.lineTo(x, y);
     }
   }
 
   ctx.stroke();
 }
-
-// --- Event observer for "drawing-changed" ---
-canvas.addEventListener("drawing-changed", redraw);
-
-// --- Dispatch helper ---
-function notifyDrawingChanged() {
-  const event = new Event("drawing-changed");
-  canvas.dispatchEvent(event);
-}
-
-// --- Mouse event handlers ---
-canvas.addEventListener("mousedown", (e) => {
-  currentStroke = [];
-  drawing.push(currentStroke);
-  currentStroke.push(getMousePos(e));
-  notifyDrawingChanged();
-});
-
-canvas.addEventListener("mousemove", (e) => {
-  if (!currentStroke) return;
-  currentStroke.push(getMousePos(e));
-  notifyDrawingChanged();
-});
-
-canvas.addEventListener("mouseup", () => {
-  currentStroke = null;
-});
-
-canvas.addEventListener("mouseleave", () => {
-  currentStroke = null;
-});
-
-// --- Clear button logic ---
-clearButton.addEventListener("click", () => {
-  drawing = [];
-  notifyDrawingChanged();
-});
