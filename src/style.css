@@ -6,14 +6,6 @@ body {
   padding: 2rem;
 }
 
-/* Center everything */
-#workspace {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
 .icon {
   width: 48px;
   height: auto;
@@ -23,17 +15,15 @@ body {
   margin-left: 6px;
 }
 
-/* Canvas styling */
 #sketchCanvas {
   background: white;
   border: 1px solid #ccc;
   border-radius: 8px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
   margin-top: 1rem;
-  cursor: none; /* hide pointer to make red preview visible */
+  cursor: none; /* hides system cursor for preview */
 }
 
-/* Button bar */
 button {
   padding: 5px 10px;
   font-size: 14px;
