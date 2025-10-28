@@ -21,7 +21,7 @@ const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
 document.body.appendChild(clearButton);
 
-// ✅ --- Undo/Redo buttons ---
+// ✅ Step 5: Add undo/redo buttons (still here)
 const undoButton = document.createElement("button");
 undoButton.textContent = "Undo";
 document.body.appendChild(undoButton);
@@ -41,40 +41,67 @@ let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
 
-// ✅ --- Data structures for undo/redo ---
-type Point = [number, number];
-let drawing: Point[][] = [];
-let currentStroke: Point[] | null = null;
-let redoStack: Point[][] = [];
+// ✅ Step 5: Define interface and command implementation
+interface DisplayCommand {
+  display(ctx: CanvasRenderingContext2D): void;
+}
+
+class MarkerCommand implements DisplayCommand {
+  private points: [number, number][] = [];
+
+  constructor(start: [number, number]) {
+    this.points.push(start);
+  }
+
+  drag(x: number, y: number) {
+    this.points.push([x, y]);
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    if (this.points.length === 0) return;
+    ctx.beginPath();
+    const [startX, startY] = this.points[0];
+    ctx.moveTo(startX, startY);
+    for (let i = 1; i < this.points.length; i++) {
+      const [x, y] = this.points[i];
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+// Use command objects instead of raw arrays
+let drawing: DisplayCommand[] = [];
+let redoStack: DisplayCommand[] = [];
+let currentCommand: MarkerCommand | null = null;
 
 // --- Event listeners ---
 canvas.addEventListener("mousedown", (e) => {
   isDrawing = true;
   [lastX, lastY] = getMousePos(e);
 
-  // ✅ start new stroke
-  currentStroke = [];
-  drawing.push(currentStroke);
+  // start a new command
+  currentCommand = new MarkerCommand([lastX, lastY]);
+  drawing.push(currentCommand);
   redoStack = [];
-  currentStroke.push([lastX, lastY]);
   redraw();
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (!isDrawing || !currentStroke) return;
+  if (!isDrawing || !currentCommand) return;
   const [x, y] = getMousePos(e);
-  currentStroke.push([x, y]);
+  currentCommand.drag(x, y);
   redraw();
 });
 
 canvas.addEventListener("mouseup", () => {
   isDrawing = false;
-  currentStroke = null;
+  currentCommand = null;
 });
 
 canvas.addEventListener("mouseleave", () => {
   isDrawing = false;
-  currentStroke = null;
+  currentCommand = null;
 });
 
 // --- Clear button logic ---
@@ -84,7 +111,7 @@ clearButton.addEventListener("click", () => {
   redoStack = [];
 });
 
-// ✅ --- Undo button logic ---
+// --- Undo button logic ---
 undoButton.addEventListener("click", () => {
   if (drawing.length === 0) return;
   const last = drawing.pop()!;
@@ -92,7 +119,7 @@ undoButton.addEventListener("click", () => {
   redraw();
 });
 
-// ✅ --- Redo button logic ---
+// --- Redo button logic ---
 redoButton.addEventListener("click", () => {
   if (redoStack.length === 0) return;
   const restored = redoStack.pop()!;
@@ -108,20 +135,10 @@ function getMousePos(event: MouseEvent): [number, number] {
   return [x, y];
 }
 
-// ✅ --- Redraw function ---
+// --- Redraw function ---
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.beginPath();
-
-  for (const stroke of drawing) {
-    if (stroke.length === 0) continue;
-    const [startX, startY] = stroke[0];
-    ctx.moveTo(startX, startY);
-    for (let i = 1; i < stroke.length; i++) {
-      const [x, y] = stroke[i];
-      ctx.lineTo(x, y);
-    }
+  for (const cmd of drawing) {
+    cmd.display(ctx); // ✅ call each command’s display method
   }
-
-  ctx.stroke();
 }
