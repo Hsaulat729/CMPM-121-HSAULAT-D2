@@ -6,7 +6,7 @@ body {
   padding: 2rem;
 }
 
-/* Workspace centers everything */
+/* Center everything */
 #workspace {
   display: flex;
   flex-direction: column;
@@ -15,7 +15,7 @@ body {
 }
 
 .icon {
-  width: 48px; /* smaller */
+  width: 48px;
   height: auto;
   display: inline-block;
   vertical-align: middle;
@@ -23,26 +23,17 @@ body {
   margin-left: 6px;
 }
 
-/* Framed canvas box */
+/* Canvas styling */
 #sketchCanvas {
   background: white;
   border: 1px solid #ccc;
   border-radius: 8px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
   margin-top: 1rem;
-  cursor: crosshair;
+  cursor: none; /* hide pointer to make red preview visible */
 }
 
-/* Button bar aligned neatly under the canvas */
-#buttonBar {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  width: 256px; /* same width as canvas */
-  margin-top: 0.5rem;
-}
-
-/* Buttons */
+/* Button bar */
 button {
   padding: 5px 10px;
   font-size: 14px;
@@ -51,8 +42,15 @@ button {
   background: #f9f9f9;
   cursor: pointer;
   transition: background 0.15s;
+  margin: 0.3rem;
 }
 
 button:hover {
   background: #eee;
+}
+
+button.selectedTool {
+  background: #00449f;
+  color: white;
+  border-color: #00449f;
 }

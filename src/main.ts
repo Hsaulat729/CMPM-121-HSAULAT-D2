@@ -16,7 +16,7 @@ canvas.height = 256;
 canvas.id = "sketchCanvas";
 document.body.appendChild(canvas);
 
-// --- Tool buttons
+// --- Tool buttons (Step 6: thin/thick markers) ---
 const thinButton = document.createElement("button");
 thinButton.textContent = "Thin Marker";
 document.body.appendChild(thinButton);
@@ -30,7 +30,7 @@ const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
 document.body.appendChild(clearButton);
 
-//  Undo/Redo buttons
+// --- Undo/Redo buttons ---
 const undoButton = document.createElement("button");
 undoButton.textContent = "Undo";
 document.body.appendChild(undoButton);
@@ -50,7 +50,7 @@ let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
 
-// ✅ Step 6: track marker thickness (default thin)
+// --- Marker thickness state ---
 let currentThickness = 2;
 
 // --- Interface and command implementation ---
@@ -74,7 +74,7 @@ class MarkerCommand implements DisplayCommand {
   display(ctx: CanvasRenderingContext2D) {
     if (this.points.length === 0) return;
     ctx.save();
-    ctx.lineWidth = this.thickness; // ✅ Step 6: draw using per-command thickness
+    ctx.lineWidth = this.thickness;
     ctx.beginPath();
     const [startX, startY] = this.points[0];
     ctx.moveTo(startX, startY);
@@ -87,6 +87,30 @@ class MarkerCommand implements DisplayCommand {
   }
 }
 
+// --- Tool preview command (Step 7) ---
+class ToolPreview implements DisplayCommand {
+  constructor(
+    private x: number,
+    private y: number,
+    private thickness: number,
+  ) {}
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.globalAlpha = 0.7; // visible transparency
+    ctx.strokeStyle = "red"; // 🔴 red outline
+    ctx.fillStyle = "rgba(255,0,0,0.15)"; // 🔴 light red fill
+    ctx.lineWidth = 1;
+    ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// --- Global data ---
+let toolPreview: ToolPreview | null = null;
 let drawing: DisplayCommand[] = [];
 let redoStack: DisplayCommand[] = [];
 let currentCommand: MarkerCommand | null = null;
@@ -99,14 +123,20 @@ canvas.addEventListener("mousedown", (e) => {
   currentCommand = new MarkerCommand([lastX, lastY], currentThickness);
   drawing.push(currentCommand);
   redoStack = [];
+  toolPreview = null;
   redraw();
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (!isDrawing || !currentCommand) return;
   const [x, y] = getMousePos(e);
-  currentCommand.drag(x, y);
-  redraw();
+
+  if (!isDrawing) {
+    toolPreview = new ToolPreview(x, y, currentThickness);
+    redraw();
+  } else if (currentCommand) {
+    currentCommand.drag(x, y);
+    redraw();
+  }
 });
 
 canvas.addEventListener("mouseup", () => {
@@ -117,6 +147,8 @@ canvas.addEventListener("mouseup", () => {
 canvas.addEventListener("mouseleave", () => {
   isDrawing = false;
   currentCommand = null;
+  toolPreview = null;
+  redraw();
 });
 
 // --- Clear button logic ---
@@ -156,9 +188,12 @@ function redraw() {
   for (const cmd of drawing) {
     cmd.display(ctx);
   }
+  if (toolPreview && !isDrawing) {
+    toolPreview.display(ctx);
+  }
 }
 
-// tool selection logic
+// --- Tool selection logic ---
 thinButton.addEventListener("click", () => {
   currentThickness = 2;
   thinButton.classList.add("selectedTool");
