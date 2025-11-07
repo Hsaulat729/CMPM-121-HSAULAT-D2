@@ -158,7 +158,11 @@ interface DisplayCommand {
 // Marker command
 class MarkerCommand implements DisplayCommand {
   private points: [number, number][] = [];
-  constructor(start: [number, number], private thickness: number, private color: string) {
+  constructor(
+    start: [number, number],
+    private thickness: number,
+    private color: string,
+  ) {
     this.points.push(start);
   }
   drag(x: number, y: number) {
@@ -182,7 +186,12 @@ class MarkerCommand implements DisplayCommand {
 
 // Marker preview
 class ToolPreview implements DisplayCommand {
-  constructor(private x: number, private y: number, private thickness: number, private color: string) {}
+  constructor(
+    private x: number,
+    private y: number,
+    private thickness: number,
+    private color: string,
+  ) {}
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.globalAlpha = 0.7;
@@ -198,7 +207,12 @@ class ToolPreview implements DisplayCommand {
 
 // Sticker preview
 class StickerPreview implements DisplayCommand {
-  constructor(private x: number, private y: number, private emoji: string, private rotation: number) {}
+  constructor(
+    private x: number,
+    private y: number,
+    private emoji: string,
+    private rotation: number,
+  ) {}
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.globalAlpha = 0.6;
@@ -218,7 +232,7 @@ class StickerCommand implements DisplayCommand {
     private x: number,
     private y: number,
     private emoji: string,
-    private rotation: number
+    private rotation: number,
   ) {}
   drag(x: number, y: number) {
     this.x = x;
@@ -248,9 +262,18 @@ canvas.addEventListener("mousedown", (e) => {
   isDrawing = true;
 
   if (currentTool === "marker") {
-    currentCommand = new MarkerCommand([x, y], currentThickness, currentMarkerColor);
+    currentCommand = new MarkerCommand(
+      [x, y],
+      currentThickness,
+      currentMarkerColor,
+    );
   } else if (currentTool === "sticker" && currentSticker) {
-    currentCommand = new StickerCommand(x, y, currentSticker, currentStickerRotation);
+    currentCommand = new StickerCommand(
+      x,
+      y,
+      currentSticker,
+      currentStickerRotation,
+    );
   }
 
   if (currentCommand) {
@@ -269,7 +292,12 @@ canvas.addEventListener("mousemove", (e) => {
     if (currentTool === "marker") {
       toolPreview = new ToolPreview(x, y, currentThickness, currentMarkerColor);
     } else if (currentTool === "sticker" && currentSticker) {
-      toolPreview = new StickerPreview(x, y, currentSticker, currentStickerRotation);
+      toolPreview = new StickerPreview(
+        x,
+        y,
+        currentSticker,
+        currentStickerRotation,
+      );
     }
     redraw();
   } else if (currentCommand) {
