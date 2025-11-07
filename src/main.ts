@@ -16,7 +16,7 @@ canvas.height = 256;
 canvas.id = "sketchCanvas";
 document.body.appendChild(canvas);
 
-// --- Marker tool buttons ---
+// --- Marker Tool Buttons ---
 const thinButton = document.createElement("button");
 thinButton.textContent = "Thin Marker";
 document.body.appendChild(thinButton);
@@ -25,21 +25,17 @@ const thickButton = document.createElement("button");
 thickButton.textContent = "Thick Marker";
 document.body.appendChild(thickButton);
 
-// ✅ Data-driven sticker list (Step 9)
+// --- Sticker List (data-driven, Step 9) ---
 const stickers: string[] = ["😀", "⭐", "🌸"];
-
-// ✅ Store sticker button objects
 let stickerButtons: { emoji: string; button: HTMLButtonElement }[] = [];
 
-// ✅ function to create sticker buttons (used for built-ins + custom)
+// Render all sticker buttons
 function renderStickerButtons() {
-  // remove old buttons first
   for (const { button } of stickerButtons) {
     button.remove();
   }
   stickerButtons = [];
 
-  // make new buttons
   for (const emoji of stickers) {
     const btn = document.createElement("button");
     btn.textContent = emoji;
@@ -48,6 +44,8 @@ function renderStickerButtons() {
     btn.addEventListener("click", () => {
       currentTool = "sticker";
       currentSticker = emoji;
+
+      // UI feedback
       thinButton.classList.remove("selectedTool");
       thickButton.classList.remove("selectedTool");
       stickerButtons.forEach((s) => s.button.classList.remove("selectedTool"));
@@ -58,10 +56,9 @@ function renderStickerButtons() {
   }
 }
 
-// ✅ Initial render of sticker buttons
 renderStickerButtons();
 
-// ✅ Add “Create Custom Sticker” button
+// --- Custom Sticker Button (Step 9) ---
 const addStickerButton = document.createElement("button");
 addStickerButton.textContent = "➕ Custom Sticker";
 document.body.appendChild(addStickerButton);
@@ -74,7 +71,7 @@ addStickerButton.addEventListener("click", () => {
   }
 });
 
-// --- Clear / Undo / Redo buttons ---
+// --- Clear / Undo / Redo ---
 const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
 document.body.appendChild(clearButton);
@@ -87,31 +84,34 @@ const redoButton = document.createElement("button");
 redoButton.textContent = "Redo";
 document.body.appendChild(redoButton);
 
-// --- Drawing context ---
+// ✅ Export PNG (Step 10)
+const exportButton = document.createElement("button");
+exportButton.textContent = "Export PNG";
+document.body.appendChild(exportButton);
+
+// Drawing context
 const ctx = canvas.getContext("2d")!;
 ctx.lineWidth = 2;
 ctx.lineCap = "round";
 ctx.strokeStyle = "black";
 
-// --- State variables ---
+// State
 let isDrawing = false;
 let currentThickness = 2;
 
-// --- Tool state ---
 let currentTool: "marker" | "sticker" = "marker";
 let currentSticker: string | null = null;
 
-// --- Interfaces and commands ---
+// --- DisplayCommand interface ---
 interface DisplayCommand {
   display(ctx: CanvasRenderingContext2D): void;
 }
 
+// --- MarkerCommand ---
 class MarkerCommand implements DisplayCommand {
   private points: [number, number][] = [];
-  private thickness: number;
-  constructor(start: [number, number], thickness: number) {
+  constructor(start: [number, number], private thickness: number) {
     this.points.push(start);
-    this.thickness = thickness;
   }
   drag(x: number, y: number) {
     this.points.push([x, y]);
@@ -131,6 +131,7 @@ class MarkerCommand implements DisplayCommand {
   }
 }
 
+// --- ToolPreview (red circle) ---
 class ToolPreview implements DisplayCommand {
   constructor(
     private x: number,
@@ -143,7 +144,6 @@ class ToolPreview implements DisplayCommand {
     ctx.globalAlpha = 0.7;
     ctx.strokeStyle = "red";
     ctx.fillStyle = "rgba(255,0,0,0.15)";
-    ctx.lineWidth = 1;
     ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
@@ -151,6 +151,7 @@ class ToolPreview implements DisplayCommand {
   }
 }
 
+// --- StickerPreview ---
 class StickerPreview implements DisplayCommand {
   constructor(private x: number, private y: number, private emoji: string) {}
   display(ctx: CanvasRenderingContext2D) {
@@ -164,6 +165,7 @@ class StickerPreview implements DisplayCommand {
   }
 }
 
+// --- StickerCommand ---
 class StickerCommand implements DisplayCommand {
   constructor(private x: number, private y: number, private emoji: string) {}
   drag(x: number, y: number) {
@@ -180,12 +182,13 @@ class StickerCommand implements DisplayCommand {
   }
 }
 
+// Global variables
 let toolPreview: DisplayCommand | null = null;
 let drawing: DisplayCommand[] = [];
 let redoStack: DisplayCommand[] = [];
 let currentCommand: DisplayCommand | null = null;
 
-// -------- EVENT LISTENERS --------
+// ---------- Mouse Events ----------
 canvas.addEventListener("mousedown", (e) => {
   const [x, y] = getMousePos(e);
   isDrawing = true;
@@ -237,7 +240,7 @@ canvas.addEventListener("mouseleave", () => {
   redraw();
 });
 
-// -------- BUTTON LOGIC --------
+// ---------- Buttons ----------
 clearButton.addEventListener("click", () => {
   drawing = [];
   redoStack = [];
@@ -256,7 +259,28 @@ redoButton.addEventListener("click", () => {
   redraw();
 });
 
-// -------- HELPERS --------
+//  --- Export PNG Logic ---
+exportButton.addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1024;
+  exportCanvas.height = 1024;
+
+  const exportCtx = exportCanvas.getContext("2d")!;
+  exportCtx.scale(4, 4); // upscale 256 → 1024
+
+  for (const cmd of drawing) {
+    cmd.display(exportCtx);
+  }
+
+  const imageData = exportCanvas.toDataURL("image/png");
+
+  const link = document.createElement("a");
+  link.href = imageData;
+  link.download = "sticker_sketchpad_export.png";
+  link.click();
+});
+
+// ---------- Helpers ----------
 function getMousePos(event: MouseEvent): [number, number] {
   const rect = canvas.getBoundingClientRect();
   return [event.clientX - rect.left, event.clientY - rect.top];
@@ -268,7 +292,7 @@ function redraw() {
   if (toolPreview && !isDrawing) toolPreview.display(ctx);
 }
 
-// -------- MARKER TOOL SELECTORS --------
+// ---------- Marker Tool Selection ----------
 thinButton.addEventListener("click", () => {
   currentTool = "marker";
   currentThickness = 2;
