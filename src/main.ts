@@ -9,14 +9,14 @@ const title = document.createElement("h1");
 title.textContent = "Sticker Sketchpad";
 document.body.appendChild(title);
 
-// Create canvas
+// Canvas
 const canvas = document.createElement("canvas");
 canvas.width = 256;
 canvas.height = 256;
 canvas.id = "sketchCanvas";
 document.body.appendChild(canvas);
 
-// --- Marker Tool Buttons ---
+// Marker tool buttons
 const thinButton = document.createElement("button");
 thinButton.textContent = "Thin Marker";
 document.body.appendChild(thinButton);
@@ -25,15 +25,46 @@ const thickButton = document.createElement("button");
 thickButton.textContent = "Thick Marker";
 document.body.appendChild(thickButton);
 
-// --- Sticker List (data-driven, Step 9) ---
-const stickers: string[] = ["😀", "⭐", "🌸"];
+// Sticker preset sets
+const stickerSets = {
+  friendly: ["😀", "⭐", "🌸", "😎", "🎵"],
+  animals: ["🐱", "🐶", "🐸", "🐢", "🐙"],
+  space: ["🚀", "🪐", "⭐", "🌙", "👽"],
+};
+
+// Sticker set selector
+const stickerSetSelect = document.createElement("select");
+stickerSetSelect.innerHTML = `
+  <option value="friendly">Friendly Set</option>
+  <option value="animals">Animal Set</option>
+  <option value="space">Space Set</option>
+`;
+document.body.appendChild(stickerSetSelect);
+
+// Sticker size slider
+const sizeLabel = document.createElement("label");
+sizeLabel.textContent = "Sticker Size: ";
+document.body.appendChild(sizeLabel);
+
+const stickerSizeInput = document.createElement("input");
+stickerSizeInput.type = "range";
+stickerSizeInput.min = "16";
+stickerSizeInput.max = "32";
+stickerSizeInput.value = "24";
+document.body.appendChild(stickerSizeInput);
+
+let currentStickerSize = 24;
+stickerSizeInput.addEventListener("input", () => {
+  currentStickerSize = parseInt(stickerSizeInput.value);
+});
+
+// Sticker commands
+let stickers = [...stickerSets.friendly];
 let stickerButtons: { emoji: string; button: HTMLButtonElement }[] = [];
 
-// Render all sticker buttons
+// Render sticker buttons
 function renderStickerButtons() {
-  for (const { button } of stickerButtons) {
-    button.remove();
-  }
+  for (const { button } of stickerButtons) button.remove();
   stickerButtons = [];
 
   for (const emoji of stickers) {
@@ -45,7 +76,6 @@ function renderStickerButtons() {
       currentTool = "sticker";
       currentSticker = emoji;
 
-      // UI feedback
       thinButton.classList.remove("selectedTool");
       thickButton.classList.remove("selectedTool");
       stickerButtons.forEach((s) => s.button.classList.remove("selectedTool"));
@@ -58,9 +88,17 @@ function renderStickerButtons() {
 
 renderStickerButtons();
 
-// --- Custom Sticker Button (Step 9) ---
+// Handle preset selection
+stickerSetSelect.addEventListener("change", () => {
+  stickers = [
+    ...stickerSets[stickerSetSelect.value as keyof typeof stickerSets],
+  ];
+  renderStickerButtons();
+});
+
+// Custom sticker button
 const addStickerButton = document.createElement("button");
-addStickerButton.textContent = "➕ Custom Sticker";
+addStickerButton.textContent = "Add Custom Sticker";
 document.body.appendChild(addStickerButton);
 
 addStickerButton.addEventListener("click", () => {
@@ -71,7 +109,7 @@ addStickerButton.addEventListener("click", () => {
   }
 });
 
-// --- Clear / Undo / Redo ---
+// Utility buttons
 const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
 document.body.appendChild(clearButton);
@@ -84,30 +122,27 @@ const redoButton = document.createElement("button");
 redoButton.textContent = "Redo";
 document.body.appendChild(redoButton);
 
-// ✅ Export PNG (Step 10)
 const exportButton = document.createElement("button");
 exportButton.textContent = "Export PNG";
 document.body.appendChild(exportButton);
 
-// Drawing context
+// Canvas context
 const ctx = canvas.getContext("2d")!;
-ctx.lineWidth = 2;
 ctx.lineCap = "round";
-ctx.strokeStyle = "black";
 
-// State
+// Drawing state
 let isDrawing = false;
 let currentThickness = 2;
 
 let currentTool: "marker" | "sticker" = "marker";
 let currentSticker: string | null = null;
 
-// --- DisplayCommand interface ---
+// Command interface
 interface DisplayCommand {
   display(ctx: CanvasRenderingContext2D): void;
 }
 
-// --- MarkerCommand ---
+// Marker command
 class MarkerCommand implements DisplayCommand {
   private points: [number, number][] = [];
   constructor(start: [number, number], private thickness: number) {
@@ -131,7 +166,7 @@ class MarkerCommand implements DisplayCommand {
   }
 }
 
-// --- ToolPreview (red circle) ---
+// Marker preview circle
 class ToolPreview implements DisplayCommand {
   constructor(
     private x: number,
@@ -151,13 +186,13 @@ class ToolPreview implements DisplayCommand {
   }
 }
 
-// --- StickerPreview ---
+// Sticker preview
 class StickerPreview implements DisplayCommand {
   constructor(private x: number, private y: number, private emoji: string) {}
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.globalAlpha = 0.6;
-    ctx.font = "24px sans-serif";
+    ctx.font = `${currentStickerSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(this.emoji, this.x, this.y);
@@ -165,7 +200,7 @@ class StickerPreview implements DisplayCommand {
   }
 }
 
-// --- StickerCommand ---
+// Sticker placement
 class StickerCommand implements DisplayCommand {
   constructor(private x: number, private y: number, private emoji: string) {}
   drag(x: number, y: number) {
@@ -174,7 +209,7 @@ class StickerCommand implements DisplayCommand {
   }
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.font = "24px sans-serif";
+    ctx.font = `${currentStickerSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(this.emoji, this.x, this.y);
@@ -182,13 +217,13 @@ class StickerCommand implements DisplayCommand {
   }
 }
 
-// Global variables
-let toolPreview: DisplayCommand | null = null;
+// Global drawing data
 let drawing: DisplayCommand[] = [];
 let redoStack: DisplayCommand[] = [];
 let currentCommand: DisplayCommand | null = null;
+let toolPreview: DisplayCommand | null = null;
 
-// ---------- Mouse Events ----------
+// Mouse events
 canvas.addEventListener("mousedown", (e) => {
   const [x, y] = getMousePos(e);
   isDrawing = true;
@@ -219,11 +254,7 @@ canvas.addEventListener("mousemove", (e) => {
     }
     redraw();
   } else if (currentCommand) {
-    if (currentCommand instanceof MarkerCommand) {
-      currentCommand.drag(x, y);
-    } else if (currentCommand instanceof StickerCommand) {
-      currentCommand.drag(x, y);
-    }
+    currentCommand.drag(x, y);
     redraw();
   }
 });
@@ -240,7 +271,7 @@ canvas.addEventListener("mouseleave", () => {
   redraw();
 });
 
-// ---------- Buttons ----------
+// Button logic
 clearButton.addEventListener("click", () => {
   drawing = [];
   redoStack = [];
@@ -259,28 +290,24 @@ redoButton.addEventListener("click", () => {
   redraw();
 });
 
-//  --- Export PNG Logic ---
+// Export PNG
 exportButton.addEventListener("click", () => {
   const exportCanvas = document.createElement("canvas");
   exportCanvas.width = 1024;
   exportCanvas.height = 1024;
-
   const exportCtx = exportCanvas.getContext("2d")!;
-  exportCtx.scale(4, 4); // upscale 256 → 1024
+  exportCtx.scale(4, 4);
 
-  for (const cmd of drawing) {
-    cmd.display(exportCtx);
-  }
+  for (const cmd of drawing) cmd.display(exportCtx);
 
   const imageData = exportCanvas.toDataURL("image/png");
-
   const link = document.createElement("a");
   link.href = imageData;
   link.download = "sticker_sketchpad_export.png";
   link.click();
 });
 
-// ---------- Helpers ----------
+// Helpers
 function getMousePos(event: MouseEvent): [number, number] {
   const rect = canvas.getBoundingClientRect();
   return [event.clientX - rect.left, event.clientY - rect.top];
@@ -292,7 +319,7 @@ function redraw() {
   if (toolPreview && !isDrawing) toolPreview.display(ctx);
 }
 
-// ---------- Marker Tool Selection ----------
+// Marker selection
 thinButton.addEventListener("click", () => {
   currentTool = "marker";
   currentThickness = 2;
