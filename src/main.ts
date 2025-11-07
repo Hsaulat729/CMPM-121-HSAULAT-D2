@@ -58,11 +58,11 @@ stickerSizeInput.addEventListener("input", () => {
   currentStickerSize = parseInt(stickerSizeInput.value);
 });
 
-// Sticker commands
+// Command data
 let stickers = [...stickerSets.friendly];
 let stickerButtons: { emoji: string; button: HTMLButtonElement }[] = [];
 
-// Render sticker buttons
+// Rendering sticker buttons
 function renderStickerButtons() {
   for (const { button } of stickerButtons) button.remove();
   stickerButtons = [];
@@ -75,6 +75,7 @@ function renderStickerButtons() {
     btn.addEventListener("click", () => {
       currentTool = "sticker";
       currentSticker = emoji;
+      currentStickerRotation = randomRotation();
 
       thinButton.classList.remove("selectedTool");
       thickButton.classList.remove("selectedTool");
@@ -88,7 +89,7 @@ function renderStickerButtons() {
 
 renderStickerButtons();
 
-// Handle preset selection
+// Sticker preset switching
 stickerSetSelect.addEventListener("change", () => {
   stickers = [
     ...stickerSets[stickerSetSelect.value as keyof typeof stickerSets],
@@ -130,12 +131,23 @@ document.body.appendChild(exportButton);
 const ctx = canvas.getContext("2d")!;
 ctx.lineCap = "round";
 
-// Drawing state
+// State
 let isDrawing = false;
 let currentThickness = 2;
-
 let currentTool: "marker" | "sticker" = "marker";
 let currentSticker: string | null = null;
+
+// Step-12: random color + random sticker rotation
+let currentMarkerColor = randomColor();
+let currentStickerRotation = randomRotation();
+
+function randomColor() {
+  return `hsl(${Math.floor(Math.random() * 360)}, 80%, 40%)`;
+}
+
+function randomRotation() {
+  return (Math.random() * 60 - 30) * (Math.PI / 180); // -30° to +30°
+}
 
 // Command interface
 interface DisplayCommand {
@@ -146,7 +158,7 @@ interface DisplayCommand {
 // Marker command
 class MarkerCommand implements DisplayCommand {
   private points: [number, number][] = [];
-  constructor(start: [number, number], private thickness: number) {
+  constructor(start: [number, number], private thickness: number, private color: string) {
     this.points.push(start);
   }
   drag(x: number, y: number) {
@@ -155,6 +167,7 @@ class MarkerCommand implements DisplayCommand {
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.lineWidth = this.thickness;
+    ctx.strokeStyle = this.color;
     ctx.beginPath();
     const [sx, sy] = this.points[0];
     ctx.moveTo(sx, sy);
@@ -167,19 +180,15 @@ class MarkerCommand implements DisplayCommand {
   }
 }
 
-// Marker preview circle
+// Marker preview
 class ToolPreview implements DisplayCommand {
-  constructor(
-    private x: number,
-    private y: number,
-    private thickness: number,
-  ) {}
+  constructor(private x: number, private y: number, private thickness: number, private color: string) {}
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.beginPath();
     ctx.globalAlpha = 0.7;
-    ctx.strokeStyle = "red";
-    ctx.fillStyle = "rgba(255,0,0,0.15)";
+    ctx.strokeStyle = this.color;
+    ctx.fillStyle = this.color + "40";
+    ctx.beginPath();
     ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
@@ -189,36 +198,45 @@ class ToolPreview implements DisplayCommand {
 
 // Sticker preview
 class StickerPreview implements DisplayCommand {
-  constructor(private x: number, private y: number, private emoji: string) {}
+  constructor(private x: number, private y: number, private emoji: string, private rotation: number) {}
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.globalAlpha = 0.6;
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
     ctx.font = `${currentStickerSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(this.emoji, this.x, this.y);
+    ctx.fillText(this.emoji, 0, 0);
     ctx.restore();
   }
 }
 
 // Sticker placement
 class StickerCommand implements DisplayCommand {
-  constructor(private x: number, private y: number, private emoji: string) {}
+  constructor(
+    private x: number,
+    private y: number,
+    private emoji: string,
+    private rotation: number
+  ) {}
   drag(x: number, y: number) {
     this.x = x;
     this.y = y;
   }
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
     ctx.font = `${currentStickerSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(this.emoji, this.x, this.y);
+    ctx.fillText(this.emoji, 0, 0);
     ctx.restore();
   }
 }
 
-// Global drawing data
+// Drawing storage
 let drawing: DisplayCommand[] = [];
 let redoStack: DisplayCommand[] = [];
 let currentCommand: DisplayCommand | null = null;
@@ -230,9 +248,9 @@ canvas.addEventListener("mousedown", (e) => {
   isDrawing = true;
 
   if (currentTool === "marker") {
-    currentCommand = new MarkerCommand([x, y], currentThickness);
+    currentCommand = new MarkerCommand([x, y], currentThickness, currentMarkerColor);
   } else if (currentTool === "sticker" && currentSticker) {
-    currentCommand = new StickerCommand(x, y, currentSticker);
+    currentCommand = new StickerCommand(x, y, currentSticker, currentStickerRotation);
   }
 
   if (currentCommand) {
@@ -249,14 +267,13 @@ canvas.addEventListener("mousemove", (e) => {
 
   if (!isDrawing) {
     if (currentTool === "marker") {
-      toolPreview = new ToolPreview(x, y, currentThickness);
+      toolPreview = new ToolPreview(x, y, currentThickness, currentMarkerColor);
     } else if (currentTool === "sticker" && currentSticker) {
-      toolPreview = new StickerPreview(x, y, currentSticker);
+      toolPreview = new StickerPreview(x, y, currentSticker, currentStickerRotation);
     }
     redraw();
   } else if (currentCommand) {
     currentCommand.drag?.(x, y);
-
     redraw();
   }
 });
@@ -273,7 +290,7 @@ canvas.addEventListener("mouseleave", () => {
   redraw();
 });
 
-// Button logic
+// Buttons
 clearButton.addEventListener("click", () => {
   drawing = [];
   redoStack = [];
@@ -325,6 +342,7 @@ function redraw() {
 thinButton.addEventListener("click", () => {
   currentTool = "marker";
   currentThickness = 2;
+  currentMarkerColor = randomColor();
   thinButton.classList.add("selectedTool");
   thickButton.classList.remove("selectedTool");
   stickerButtons.forEach((s) => s.button.classList.remove("selectedTool"));
@@ -333,6 +351,7 @@ thinButton.addEventListener("click", () => {
 thickButton.addEventListener("click", () => {
   currentTool = "marker";
   currentThickness = 6;
+  currentMarkerColor = randomColor();
   thickButton.classList.add("selectedTool");
   thinButton.classList.remove("selectedTool");
   stickerButtons.forEach((s) => s.button.classList.remove("selectedTool"));
