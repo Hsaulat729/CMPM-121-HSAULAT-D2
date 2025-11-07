@@ -140,6 +140,7 @@ let currentSticker: string | null = null;
 // Command interface
 interface DisplayCommand {
   display(ctx: CanvasRenderingContext2D): void;
+  drag?(x: number, y: number): void;
 }
 
 // Marker command
@@ -254,7 +255,8 @@ canvas.addEventListener("mousemove", (e) => {
     }
     redraw();
   } else if (currentCommand) {
-    currentCommand.drag(x, y);
+    currentCommand.drag?.(x, y);
+
     redraw();
   }
 });
